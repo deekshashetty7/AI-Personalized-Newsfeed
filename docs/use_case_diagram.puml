@@ -1,0 +1,55 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangular
+
+actor Guest
+actor "Registered User" as User
+actor Admin
+actor Scheduler
+
+rectangle "NewsApp" {
+  usecase "View News Feed" as UC_View
+  usecase "Search Articles" as UC_Search
+  usecase "View Article" as UC_ViewArticle
+  usecase "Save / Bookmark Article" as UC_Save
+  usecase "Like / React" as UC_Like
+  usecase "Comment on Article" as UC_Comment
+  usecase "Request AI Summary" as UC_Summary
+  usecase "Fetch Latest News (auto)" as UC_Fetch
+  usecase "Manage Sources" as UC_ManageSrc
+  usecase "User Registration / Login" as UC_Auth
+  usecase "Manage Profile" as UC_Profile
+}
+
+Guest --> UC_View
+Guest --> UC_ViewArticle
+Guest --> UC_Search
+Guest --> UC_Auth
+
+User --> UC_View
+User --> UC_Search
+User --> UC_ViewArticle
+User --> UC_Save
+User --> UC_Like
+User --> UC_Comment
+User --> UC_Summary
+User --> UC_Profile
+User --> UC_Auth
+
+Admin --> UC_ManageSrc
+Admin --> UC_Fetch
+Admin --> UC_View
+
+Scheduler --> UC_Fetch
+
+note right of UC_Summary
+  AI service (Claude Haiku 4.5)
+  with automatic failover to Gemini
+end note
+
+note bottom of UC_Fetch
+  Sources: RSS, NewsAPI, Reddit, Twitter
+  Automatic schedule and manual trigger
+end note
+
+@enduml
