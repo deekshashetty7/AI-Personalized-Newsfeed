@@ -2393,44 +2393,15 @@ Write professionally without headings or labels. Use neutral journalistic tone."
 
 def generate_detailed_explanation(summary, title, category):
     """
-    Generate a detailed, comprehensive explanation when external content can't be fetched.
-    Expands the summary into a fuller article-style explanation.
+    Return article text when external content can't be fetched.
+    Keep only the available summary/content without duplicate headers or filler.
     """
     import re
-    
-    # Clean the summary - remove character count indicators like "[+3922 chars]"
-    summary = re.sub(r'\[\+\d+\s+chars?\]', '', summary)
+
+    summary = re.sub(r'\[\+\d+\s+chars?\]', '', summary or '')
     summary = re.sub(r'\.\.\.$', '', summary.strip())
-    
-    # FOCUS ON ARTICLE-SPECIFIC CONTENT - minimize generic filler
-    sections = []
-    
-    # Title and category header
-    sections.append(f"# {title}\n")
-    sections.append(f"**Category:** {category}\n")
-    sections.append("---\n")
-    
-    # Main content - THE ACTUAL ARTICLE SUMMARY/CONTENT (most important)
-    sections.append("## Article Overview\n")
-    sections.append(summary + "\n")
-    
-    # Only add minimal context if summary is very short (less than 300 chars)
-    if len(summary) < 300:
-        sections.append("\n## Additional Context\n")
-        sections.append(
-            "This article provides important information about recent developments in this area. "
-            "The situation continues to evolve, and stakeholders are monitoring the developments closely. "
-            "Further updates may be provided as more information becomes available.\n"
-        )
-    
-    # Minimal footer
-    sections.append("\n---\n")
-    sections.append(
-        "*Note: This content is based on available article information. "
-        "Original formatting from the source may vary.*\n"
-    )
-    
-    return '\n'.join(sections)
+
+    return summary
 
 
 @api_view(['GET'])

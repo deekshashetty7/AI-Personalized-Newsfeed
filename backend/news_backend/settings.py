@@ -31,6 +31,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -64,7 +65,7 @@ WSGI_APPLICATION = 'news_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.getenv('DATABASE_PATH', str(BASE_DIR / 'db.sqlite3')),
     }
 }
 
@@ -108,6 +109,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = 'media/'
@@ -117,13 +119,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
+_default_cors = "http://localhost:3000,http://127.0.0.1:3000"
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
+    origin.strip()
+    for origin in os.getenv('CORS_ALLOWED_ORIGINS', _default_cors).split(',')
+    if origin.strip()
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -156,13 +156,13 @@ SIMPLE_JWT = {
 }
 
 # NewsAPI settings
-NEWS_API_KEY = os.getenv('NEWS_API_KEY', 'ab8030efca974e9ab9cd0281b632b5fb')
+NEWS_API_KEY = os.getenv('NEWS_API_KEY', '')
 
 # GNews API settings (Get free key from https://gnews.io)
 GNEWS_API_KEY = os.getenv('GNEWS_API_KEY', None)
 
 # RSS Feed API settings
-RSS_API_KEY = os.getenv('RSS_API_KEY', 'pub_619c113387574246a999cb70deeeef32')
+RSS_API_KEY = os.getenv('RSS_API_KEY', '')
 
 # Twitter API settings (Get from https://developer.twitter.com)
 TWITTER_BEARER_TOKEN = os.getenv('TWITTER_BEARER_TOKEN', None)
