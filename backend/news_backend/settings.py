@@ -5,6 +5,7 @@ Django settings for news_backend project.
 from pathlib import Path
 from datetime import timedelta
 import os
+import certifi
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -68,6 +69,7 @@ DATABASES = {
         'NAME': os.getenv('MONGODB_NAME', 'ai_newsfeed'),
         'CLIENT': {
             'host': os.getenv('MONGODB_URI', 'mongodb://localhost:27017'),
+            'tlsCAFile': certifi.where(),
         }
     }
 }
