@@ -61,25 +61,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'news_backend.wsgi.application'
 
-# Database - MongoDB
+# Database - MongoDB via Atlas
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.getenv('DATABASE_PATH', str(BASE_DIR / 'db.sqlite3')),
+        'ENGINE': 'djongo',
+        'NAME': os.getenv('MONGODB_NAME', 'ai_newsfeed'),
+        'CLIENT': {
+            'host': os.getenv('MONGODB_URI', 'mongodb://localhost:27017'),
+        }
     }
 }
-
-# MongoDB Configuration (optional)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'djongo',
-#         'NAME': os.getenv('MONGODB_NAME', 'ai_newsfeed'),
-#         'CLIENT': {
-#             'host': os.getenv('MONGODB_HOST', 'localhost'),
-#             'port': int(os.getenv('MONGODB_PORT', 27017)),
-#         }
-#     }
-# }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -191,4 +182,3 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')  # Your Gmail address
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # Your Gmail App Password
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
-
