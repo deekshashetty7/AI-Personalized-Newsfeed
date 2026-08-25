@@ -5,7 +5,6 @@ Django settings for news_backend project.
 from pathlib import Path
 from datetime import timedelta
 import os
-import certifi
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -62,15 +61,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'news_backend.wsgi.application'
 
-# Database - MongoDB via Atlas
+# Database - SQLite for Django internals only (auth, sessions, admin, migrations).
+# Actual app data (articles, interactions, recommendations) lives in MongoDB Atlas
+# and is accessed directly via pymongo — see api/mongo_client.py
 DATABASES = {
     'default': {
-        'ENGINE': 'djongo',
-        'NAME': os.getenv('MONGODB_NAME', 'ai_newsfeed'),
-        'CLIENT': {
-            'host': os.getenv('MONGODB_URI', 'mongodb://localhost:27017'),
-            'tlsCAFile': certifi.where(),
-        }
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.getenv('DATABASE_PATH', str(BASE_DIR / 'db.sqlite3')),
     }
 }
 
