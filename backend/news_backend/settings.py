@@ -5,6 +5,7 @@ Django settings for news_backend project.
 from pathlib import Path
 from datetime import timedelta
 import os
+import dj_database_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -61,14 +62,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'news_backend.wsgi.application'
 
-# Database - SQLite for Django internals only (auth, sessions, admin, migrations).
-# Actual app data (articles, interactions, recommendations) lives in MongoDB Atlas
-# and is accessed directly via pymongo — see api/mongo_client.py
+# Database - PostgreSQL (Render) in production, SQLite fallback for local dev.
+# models.py uses standard Django ORM fields throughout (no MongoDB-specific
+# structures), so PostgreSQL works with zero changes to models.py.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.getenv('DATABASE_PATH', str(BASE_DIR / 'db.sqlite3')),
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
 
 # Password validation
