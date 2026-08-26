@@ -1,10 +1,63 @@
 """
-Email service for sending OTP and other emails
+Email service for sending OTP and other emails.
+
+Uses the Sendcorex HTTP API (not SMTP) because Render's free tier blocks
+outbound SMTP traffic on ports 25/465/587. HTTPS requests are unaffected.
 """
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from django.conf import settings
+
+SENDCOREX_SEND_URL = "https://mail.sendcorex.com/v3.0/send"
+
+
+def _send_via_sendcorex(to_email, subject, html_body, text_body=None):
+    """
+    Send an email via the Sendcorex HTTP API.
+    Returns a dict: {'success': bool, 'mode': str, 'error': str (optional)}
+    """
+    api_key = getattr(settings, 'SENDCOREX_API_KEY', '')
+    from_email = getattr(settings, 'SENDCOREX_FROM_EMAIL', '')
+    from_name = getattr(settings, 'SENDCOREX_FROM_NAME', 'InfoCred')
+
+    if not api_key or not from_email:
+        # Development mode: no Sendcorex credentials configured
+        return {
+            'success': False,
+            'mode': 'unconfigured',
+            'error': 'SENDCOREX_API_KEY or SENDCOREX_FROM_EMAIL not set',
+        }
+
+    payload = {
+        'to': to_email,
+        'from': from_email,
+        'senderName': from_name,
+        'subject': subject,
+        'body': html_body,
+    }
+
+    try:
+        response = requests.post(
+            SENDCOREX_SEND_URL,
+            json=payload,
+            headers={
+                'Authorization': api_key,
+                'Content-Type': 'application/json',
+            },
+            timeout=10,
+        )
+        data = response.json() if response.content else {}
+
+        if response.status_code == 200 and data.get('success'):
+            return {'success': True, 'mode': 'production'}
+
+        return {
+            'success': False,
+            'mode': 'api_error',
+            'error': f"HTTP {response.status_code}: {data.get('message', response.text)}",
+        }
+
+    except requests.exceptions.RequestException as e:
+        return {'success': False, 'mode': 'network_error', 'error': str(e)}
 
 
 def send_otp_email(email, otp):
@@ -12,18 +65,6 @@ def send_otp_email(email, otp):
     Send OTP to the user's email
     """
     try:
-        # Email configuration
-        sender_email = getattr(settings, 'EMAIL_HOST_USER', 'noreply@infocred.com')
-        sender_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
-        smtp_server = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
-        smtp_port = getattr(settings, 'EMAIL_PORT', 587)
-        
-        # Create message
-        message = MIMEMultipart('alternative')
-        message['Subject'] = 'InfoCred - Email Verification Code'
-        message['From'] = f'InfoCred <{sender_email}>'
-        message['To'] = email
-        
         # Email body (HTML)
         html_body = f"""
         <!DOCTYPE html>
@@ -135,44 +176,34 @@ def send_otp_email(email, otp):
         © 2025 InfoCred. All rights reserved.
         """
         
-        # Attach both versions
-        part1 = MIMEText(text_body, 'plain')
-        part2 = MIMEText(html_body, 'html')
-        message.attach(part1)
-        message.attach(part2)
-        
-        # If no SMTP credentials configured, print to console (development mode)
-        if not sender_password:
-            print(f"\n{'='*60}")
-            print(f"📧 EMAIL SENDING (DEVELOPMENT MODE)")
-            print(f"{'='*60}")
-            print(f"To: {email}")
-            print(f"Subject: InfoCred - Email Verification Code")
-            print(f"OTP: {otp}")
-            print(f"Expires: 10 minutes")
-            print(f"{'='*60}\n")
+        result = _send_via_sendcorex(email, 'InfoCred - Email Verification Code', html_body)
+
+        if result['success']:
+            print(f"✅ OTP email sent successfully to {email}")
             return {
                 'success': True,
-                'message': 'OTP sent successfully (development mode - check console)',
-                'mode': 'development'
+                'message': 'OTP sent successfully to your email',
+                'mode': 'production'
             }
-        
-        # Send email via SMTP
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(message)
-        
-        print(f"✅ OTP email sent successfully to {email}")
+
+        # Sendcorex not configured or failed - fall back to console (dev mode)
+        print(f"\n{'='*60}")
+        print(f"📧 EMAIL SENDING FAILED/UNCONFIGURED - SHOWING OTP")
+        print(f"{'='*60}")
+        print(f"To: {email}")
+        print(f"OTP: {otp}")
+        print(f"Reason: {result.get('error')}")
+        print(f"{'='*60}\n")
+
         return {
             'success': True,
-            'message': 'OTP sent successfully to your email',
-            'mode': 'production'
+            'message': 'OTP generated (check console for code)',
+            'mode': result.get('mode', 'fallback'),
+            'error': result.get('error')
         }
-        
+
     except Exception as e:
         print(f"❌ Error sending OTP email: {str(e)}")
-        # In development, still return success and print OTP
         print(f"\n{'='*60}")
         print(f"📧 EMAIL SENDING FAILED - SHOWING OTP")
         print(f"{'='*60}")
@@ -180,7 +211,7 @@ def send_otp_email(email, otp):
         print(f"OTP: {otp}")
         print(f"Error: {str(e)}")
         print(f"{'='*60}\n")
-        
+
         return {
             'success': True,
             'message': 'OTP generated (check console for code)',
@@ -194,16 +225,6 @@ def send_welcome_email(email, name):
     Send welcome email after successful verification
     """
     try:
-        sender_email = getattr(settings, 'EMAIL_HOST_USER', 'noreply@infocred.com')
-        sender_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
-        smtp_server = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
-        smtp_port = getattr(settings, 'EMAIL_PORT', 587)
-        
-        message = MIMEMultipart('alternative')
-        message['Subject'] = 'Welcome to InfoCred!'
-        message['From'] = f'InfoCred <{sender_email}>'
-        message['To'] = email
-        
         html_body = f"""
         <!DOCTYPE html>
         <html>
@@ -255,19 +276,13 @@ def send_welcome_email(email, name):
         </html>
         """
         
-        part = MIMEText(html_body, 'html')
-        message.attach(part)
-        
-        if not sender_password:
-            print(f"✅ Welcome email sent (development mode) to {email}")
-            return {'success': True}
-        
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(message)
-        
-        print(f"✅ Welcome email sent to {email}")
+        result = _send_via_sendcorex(email, 'Welcome to InfoCred!', html_body)
+
+        if result['success']:
+            print(f"✅ Welcome email sent to {email}")
+        else:
+            print(f"⚠️ Welcome email not sent (mode={result.get('mode')}): {result.get('error')}")
+
         return {'success': True}
         
     except Exception as e:
@@ -280,16 +295,6 @@ def send_password_reset_otp(email, otp):
     Send OTP for password reset
     """
     try:
-        sender_email = getattr(settings, 'EMAIL_HOST_USER', 'noreply@infocred.com')
-        sender_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
-        smtp_server = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
-        smtp_port = getattr(settings, 'EMAIL_PORT', 587)
-        
-        message = MIMEMultipart('alternative')
-        message['Subject'] = 'AI NewsFeed - Password Reset OTP'
-        message['From'] = f'AI NewsFeed <{sender_email}>'
-        message['To'] = email
-        
         html_body = f"""
         <!DOCTYPE html>
         <html>
@@ -391,43 +396,33 @@ def send_password_reset_otp(email, otp):
         AI NewsFeed Team
         """
         
-        part1 = MIMEText(text_body, 'plain')
-        part2 = MIMEText(html_body, 'html')
-        message.attach(part1)
-        message.attach(part2)
-        
-        # Development mode - print to console
-        if not sender_password or sender_password == '':
-            print(f"\n{'='*60}")
-            print(f"📧 PASSWORD RESET OTP EMAIL (Development Mode)")
-            print(f"{'='*60}")
-            print(f"To: {email}")
-            print(f"Subject: AI NewsFeed - Password Reset OTP")
-            print(f"OTP: {otp}")
-            print(f"Expires: 10 minutes")
-            print(f"{'='*60}\n")
+        result = _send_via_sendcorex(email, 'AI NewsFeed - Password Reset OTP', html_body, text_body)
+
+        if result['success']:
+            print(f"✅ Password reset OTP email sent successfully to {email}")
             return {
                 'success': True,
-                'message': 'OTP sent successfully (development mode - check console)',
-                'mode': 'development'
+                'message': 'OTP sent successfully to your email',
+                'mode': 'production'
             }
-        
-        # Send email via SMTP
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(message)
-        
-        print(f"✅ Password reset OTP email sent successfully to {email}")
+
+        print(f"\n{'='*60}")
+        print(f"📧 PASSWORD RESET OTP EMAIL FAILED/UNCONFIGURED")
+        print(f"{'='*60}")
+        print(f"To: {email}")
+        print(f"OTP: {otp}")
+        print(f"Reason: {result.get('error')}")
+        print(f"{'='*60}\n")
+
         return {
             'success': True,
-            'message': 'OTP sent successfully to your email',
-            'mode': 'production'
+            'message': 'OTP generated (check console for code)',
+            'mode': result.get('mode', 'fallback'),
+            'error': result.get('error')
         }
-        
+
     except Exception as e:
         print(f"❌ Error sending password reset OTP email: {str(e)}")
-        # In development, still return success and print OTP
         print(f"\n{'='*60}")
         print(f"📧 EMAIL SENDING FAILED - SHOWING OTP")
         print(f"{'='*60}")
@@ -435,7 +430,7 @@ def send_password_reset_otp(email, otp):
         print(f"OTP: {otp}")
         print(f"Error: {str(e)}")
         print(f"{'='*60}\n")
-        
+
         return {
             'success': True,
             'message': 'OTP generated (check console for code)',
@@ -449,16 +444,6 @@ def send_password_reset_email(email, reset_link):
     Send password reset email with reset link
     """
     try:
-        sender_email = getattr(settings, 'EMAIL_HOST_USER', 'noreply@infocred.com')
-        sender_password = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
-        smtp_server = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
-        smtp_port = getattr(settings, 'EMAIL_PORT', 587)
-        
-        message = MIMEMultipart('alternative')
-        message['Subject'] = 'InfoCred - Password Reset Request'
-        message['From'] = f'InfoCred <{sender_email}>'
-        message['To'] = email
-        
         html_body = f"""
         <!DOCTYPE html>
         <html>
@@ -556,38 +541,31 @@ def send_password_reset_email(email, reset_link):
         © 2025 InfoCred. All rights reserved.
         """
         
-        part1 = MIMEText(text_body, 'plain')
-        part2 = MIMEText(html_body, 'html')
-        message.attach(part1)
-        message.attach(part2)
-        
-        # If no SMTP credentials, print to console (development mode)
-        if not sender_password:
-            print(f"\n{'='*60}")
-            print(f"📧 PASSWORD RESET EMAIL (DEVELOPMENT MODE)")
-            print(f"{'='*60}")
-            print(f"To: {email}")
-            print(f"Reset Link: {reset_link}")
-            print(f"{'='*60}\n")
+        result = _send_via_sendcorex(email, 'InfoCred - Password Reset Request', html_body, text_body)
+
+        if result['success']:
+            print(f"✅ Password reset email sent to {email}")
             return {
                 'success': True,
-                'message': 'Password reset link sent (development mode - check console)',
-                'mode': 'development'
+                'message': 'Password reset email sent successfully',
+                'mode': 'production'
             }
-        
-        # Send email via SMTP
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(message)
-        
-        print(f"✅ Password reset email sent to {email}")
+
+        print(f"\n{'='*60}")
+        print(f"📧 PASSWORD RESET EMAIL FAILED/UNCONFIGURED - SHOWING LINK")
+        print(f"{'='*60}")
+        print(f"To: {email}")
+        print(f"Reset Link: {reset_link}")
+        print(f"Reason: {result.get('error')}")
+        print(f"{'='*60}\n")
+
         return {
             'success': True,
-            'message': 'Password reset email sent successfully',
-            'mode': 'production'
+            'message': 'Reset link generated (check console)',
+            'mode': result.get('mode', 'fallback'),
+            'error': result.get('error')
         }
-        
+
     except Exception as e:
         print(f"❌ Error sending password reset email: {str(e)}")
         print(f"\n{'='*60}")
@@ -604,4 +582,3 @@ def send_password_reset_email(email, reset_link):
             'mode': 'fallback',
             'error': str(e)
         }
-
