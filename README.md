@@ -372,6 +372,11 @@ This is a complete project template. Feel free to customize and extend!
 ---
 
 **Happy Coding! 🚀**
-#   A I - P e r s o n a l i z e d - N e w s f e e d  
- #   A I - P e r s o n a l i z e d - N e w s f e e d  
+#   A I - P e r s o n a l i z e d - N e w s f e e d 
+ 
+ #   A I - P e r s o n a l i z e d - N e w s f e e d 
+
+
+
+ 
  
