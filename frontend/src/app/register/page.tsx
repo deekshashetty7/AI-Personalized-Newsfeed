@@ -176,7 +176,7 @@ export default function RegisterPage() {
     
     try {
       console.log('📧 Sending OTP to:', formData.email);
-      const response = await fetch('http://127.0.0.1:8000/api/auth/send-otp/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/auth/send-otp/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email }),
@@ -211,7 +211,7 @@ export default function RegisterPage() {
     
     try {
       console.log('🔍 Verifying OTP for:', formData.email, 'OTP:', otp);
-      const response = await fetch('http://127.0.0.1:8000/api/auth/verify-otp/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/auth/verify-otp/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, otp: otp.toString() }),
