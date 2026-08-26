@@ -41,3 +41,4 @@ class ApiConfig(AppConfig):
         #     # Start in daemon thread (won't block Django shutdown)
         #     fetcher_thread = threading.Thread(target=start_auto_fetcher, daemon=True)
         #     fetcher_thread.start()
+
