@@ -235,7 +235,7 @@ def analyze_sentiment_bert(text):
     return bert_analyzer.analyze(text)
 
 
-   def analyze_sentiment(text):
+     def analyze_sentiment(text):
        """
        Convenience function for quick sentiment analysis
        Uses TextBlob (lightweight, avoids loading the heavy BERT model
