@@ -235,15 +235,16 @@ def analyze_sentiment_bert(text):
     return bert_analyzer.analyze(text)
 
 
-     def analyze_sentiment(text):
-       """
-       Convenience function for quick sentiment analysis
-       Uses TextBlob (lightweight, avoids loading the heavy BERT model
-       which exceeds free-tier memory limits)
-       
-       Returns: float between -1 and 1
-       """
-       return sentiment_analyzer.analyze(text)
+def analyze_sentiment(text):
+    """
+    Convenience function for quick sentiment analysis
+    Uses TextBlob (lightweight, avoids loading the heavy BERT model
+    which exceeds free-tier memory limits)
+
+    Returns: float between -1 and 1
+    """
+    return sentiment_analyzer.analyze(text)
+
 
 def analyze_article_sentiment(article_data):
     """Analyze sentiment of a news article"""
